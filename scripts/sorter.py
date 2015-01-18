@@ -94,19 +94,20 @@ class Sorter(object):
         #)
 
         # When we're not using a vector space then we need to make sure the
-        # batch is the first dimension.
-        if (
+        # the data has the shape ('b', 0, 1, 'c')
+	if (
             not isinstance(self.representation_space, VectorSpace)
-            and self.representation_space.axes[0] != 'b'
+            and self.representation_space.axes != ('b', 0, 1, 'c')
         ):
-            idx = self.representation_space.axes.index('b')
-            dims = range(len(self.representation_space.axes))
-            dims.remove(idx)
-            dims = [idx] + dims
-            representation = representation.dimshuffle(tuple(dims))
-            self.axes = tuple(['b'] + [
-                item for item in self.representation_space.axes if item != 'b'
-            ])
+            reshape_param = (
+                self.representation_space.axes.index('b'),
+                self.representation_space.axes.index(0),
+                self.representation_space.axes.index(1),
+                self.representation_space.axes.index('c'),
+            )
+            if reshape_param != (0, 1, 2, 3):
+                self.axes = ('b', 0, 1, 'c')
+                representation = representation.dimshuffle(reshape_param)
 
         self.fprop = theano.function(
             [X],

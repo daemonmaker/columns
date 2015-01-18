@@ -1,12 +1,13 @@
 !obj:pylearn2.train.Train {
-    dataset: &train !pkl: "%(dataset_dir)s/train_%(idx)d.pkl",
+    dataset: &train !pkl: "/data/lisatmp2/webbd/columns/datasets/CIFAR10/train_0.pkl",
     model: !obj:pylearn2.models.mlp.MLP {
         batch_size: 128,
         layers: [
                  !obj:pylearn2.models.PretrainedLayerBlock.PretrainedLayerBlock {
                      block_name: 'repr',
-                     model_content: !pkl: "%(teacher_path)s",
+                     model_content: !pkl: "/data/lisatmp3/romerosa/compression/teachers/trained_models/CIFAR10/CIFAR10teacher_maxout_aug.pkl",
                      block_output_layer: 1,
+                     freeze_params: True
                  },
                  !obj:pylearn2.models.maxout.MaxoutConvC01B {
                      layer_name: 'fitnet_conv0',
@@ -155,7 +156,7 @@
         },
     },
     algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
-        learning_rate: .005,
+        learning_rate: .001,
         learning_rule: !obj:pylearn2.training_algorithms.learning_rule.RMSProp        {
           decay: 0.9,
           max_scaling: 100000.0,
@@ -164,10 +165,10 @@
         monitor_iteration_mode: 'even_sequential',
         monitoring_dataset:
             {
-                'valid' : &valid !pkl: "%(dataset_dir)s/valid_%(idx)d.pkl",
+                'valid' : &valid !pkl: "/data/lisatmp2/webbd/columns/datasets/CIFAR10/valid_0.pkl",
             },
         cost: !obj:FitNets.costs.KDCost.KDCost {
-          teacher_path: "%(teacher_path)s",
+          teacher_path: "/data/lisatmp3/romerosa/compression/teachers/trained_models/CIFAR10/CIFAR10teacher_maxout_aug.pkl",
           temperature: 3,
           lambda_teach: 4,
           hints: [[5,2]],
@@ -175,27 +176,27 @@
         termination_criterion: !obj:pylearn2.termination_criteria.Or {
           criteria : [
                       !obj:pylearn2.termination_criteria.EpochCounter {
-                          max_epochs: 500
+                          max_epochs: 50
                       },
-        #              !obj:pylearn2.termination_criteria.MonitorBased {
-        #                  channel_name: "valid_y_misclass",
-        #                  prop_decrease: 0.9,
-        #                  N: 1
-        #              },
+                      !obj:pylearn2.termination_criteria.MonitorBased {
+                          channel_name: "valid_y_misclass",
+                          prop_decrease: 0.0,
+                          N: 100
+                      },
            ]
         }
     },
     extensions: [
         !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
                 channel_name: 'valid_y_misclass',
-                save_path: "%(trained_models_path)s/%(model_name)s_best.pkl",
+                save_path: "/data/lisatmp2/webbd/columns/trained_models/CIFAR10/fitnet11_9conv_2fc_best.pkl",
         },
-        #!obj:pylearn2.train_extensions.window_flip.WindowAndFlip {
-        #    pad_randomized: 8,
-        #    window_shape: *window_shape,
-        #    randomize: [ *train],
-        #    center: [ *valid ]
-        #},
+        !obj:pylearn2.train_extensions.window_flip.WindowAndFlip {
+            pad_randomized: 8,
+            window_shape: *window_shape,
+            randomize: [ *train],
+            center: [ *valid ]
+        },
         !obj:FitNets.extensions.TeacherDecayOverEpoch.TeacherDecayOverEpoch {
             start: 5,
             saturate: 400,
@@ -203,6 +204,6 @@
         },
 
     ],
-    save_path: "%(trained_models_path)s/%(model_name)s.pkl",
+    save_path: "/data/lisatmp2/webbd/columns/trained_models/CIFAR10/fitnet11_9conv_2fc.pkl",
     save_freq: 1
 }
