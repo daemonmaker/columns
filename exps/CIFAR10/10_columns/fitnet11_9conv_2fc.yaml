@@ -173,10 +173,10 @@
           lambda_teach: 4,
           hints: [[5,2]],
         },
-        termination_criterion: !obj:pylearn2.termination_criteria.Or {
+        termination_criterion: !obj:pylearn2.termination_criteria.And {
           criteria : [
                       !obj:pylearn2.termination_criteria.EpochCounter {
-                          max_epochs: 50
+                          max_epochs: 100
                       },
                       !obj:pylearn2.termination_criteria.MonitorBased {
                           channel_name: "valid_y_misclass",
