@@ -1,0 +1,1 @@
+jobdispatch --gpu --duree=01:59:59 --mem=6G --env=THEANO_FLAGS=floatX=float32,device=gpu,force_device=True --repeat_jobs=1 python ~/columns/columns/scripts/sorter.py 10 /scratch/jvb-000-aa/webbd/columns/teachers/CIFAR10/10_columns/CIFAR10teacher_maxout_aug.pkl CIFAR10 -T 10
