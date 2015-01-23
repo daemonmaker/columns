@@ -235,12 +235,12 @@ class Sorter(object):
             if isinstance(self.representation_space, VectorSpace):
                 valid_dataset = DenseDesignMatrix(
                     X=representations[rows[separator:]],
-                    y=soft_labels[rows[separator:]],
+                    y=self.dataset.y[rows[separator:]],
                 )
             else:
                 valid_dataset = DenseDesignMatrix(
                     topo_view=representations[rows[separator:]],
-                    y=soft_labels[rows[separator:]],
+                    y=self.dataset.y[rows[separator:]],
                     axes=self.axes
                 )
             valid_dataset.use_design_loc(
