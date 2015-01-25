@@ -234,6 +234,7 @@ class Sorter(object):
                     y=y[rows[:separator]],
                     axes=self.axes
                 )
+            train_dataset.soft_labels = soft_labels[rows[:separator]]
             train_dataset.use_design_loc(
                 op.join(results_dir, name_template % ('train', idx, 'npy'))
             )
@@ -256,6 +257,7 @@ class Sorter(object):
                     y=y[rows[separator:]],
                     axes=self.axes
                 )
+            valid_datset.soft_labels = soft_labels[rows[separator:]]
             valid_dataset.use_design_loc(
                 op.join(results_dir, name_template % ('valid', idx, 'npy'))
             )
