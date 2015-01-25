@@ -213,16 +213,25 @@ class Sorter(object):
             separator = int((1 - percentage_valid)*len(rows))
             assert(separator > 0 and separator < len(rows))
 
+            # Create targets
+            y = np.zeros((self.dataset.y.shape[0], self.total_columns))
+            for jdx in xrange(self.dataset.y.shape[0]):
+                y[jdx][self.dataset.y[jdx]] = 1
+
             # Create and save the train dataset
             if isinstance(self.representation_space, VectorSpace):
                 train_dataset = DenseDesignMatrix(
                     X=representations[rows[:separator]],
-                    y=soft_labels[rows[:separator]],
+                    #y=self.dataset.y[rows[:separator]],
+                    #y=soft_labels[rows[:separator]],
+                    y=y[rows[:separator]],
                 )
             else:
                 train_dataset = DenseDesignMatrix(
                     topo_view=representations[rows[:separator]],
-                    y=soft_labels[rows[:separator]],
+                    #y=self.dataset.y[rows[:separator]],
+                    #y=soft_labels[rows[:separator]],
+                    y=y[rows[:separator]],
                     axes=self.axes
                 )
             train_dataset.use_design_loc(
@@ -235,12 +244,16 @@ class Sorter(object):
             if isinstance(self.representation_space, VectorSpace):
                 valid_dataset = DenseDesignMatrix(
                     X=representations[rows[separator:]],
-                    y=soft_labels[rows[separator:]],
+                    #y=self.dataset.y[rows[separator:]],
+                    #y=soft_labels[rows[separator:]],
+                    y=y[rows[separator:]],
                 )
             else:
                 valid_dataset = DenseDesignMatrix(
                     topo_view=representations[rows[separator:]],
-                    y=soft_labels[rows[separator:]],
+                    #y=self.dataset.y[rows[separator:]],
+                    #y=soft_labels[rows[separator:]],
+                    y=y[rows[separator:]],
                     axes=self.axes
                 )
             valid_dataset.use_design_loc(
