@@ -257,7 +257,7 @@ class Sorter(object):
                     y=y[rows[separator:]],
                     axes=self.axes
                 )
-            valid_datset.soft_labels = soft_labels[rows[separator:]]
+            valid_dataset.soft_labels = soft_labels[rows[separator:]]
             valid_dataset.use_design_loc(
                 op.join(results_dir, name_template % ('valid', idx, 'npy'))
             )
@@ -321,6 +321,9 @@ class ThresholdSorter(Sorter):
         if threshold is None:
             threshold = 0.3
             print 'Threshold not set. Defaulting to 30%.'
+        else:
+            threshold = float(threshold)
+            print 'Threshold set to %f' % threshold
 
         if not (threshold > 0.0 and threshold <= 1.0):
             raise ValueError('Threshold should be in (0.0, 1.0].')
