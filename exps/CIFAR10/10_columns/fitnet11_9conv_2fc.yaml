@@ -197,7 +197,7 @@
     extensions: [
         !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
                 channel_name: 'valid_y_misclass',
-                save_path: "%(trained_models_path)s/%(model_name)s_%(idx)d_best.pkl",
+                save_path: "%(model_name)s_%(idx)d_best.pkl",
         },
         !obj:pylearn2.train_extensions.window_flip.WindowAndFlip {
             pad_randomized: 8,
@@ -212,6 +212,6 @@
         },
 
     ],
-    save_path: "%(trained_models_path)s/%(model_name)s_%(idx)d.pkl",
+    save_path: "%(model_name)s_%(idx)d.pkl",
     save_freq: 10
 }

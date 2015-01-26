@@ -28,11 +28,6 @@ def main():
         help='The path to the teacher model.'
     )
     parser.add_argument(
-        'trained_models_path',
-        default='/data/lisatmp2/webbd/columns/trained_models/CIFAR10',
-        help='Where to store the trained models.'
-    )
-    parser.add_argument(
         'model_name',
         default='fitnet11_9conv_2fc_',
         help='Name to give the trained models.'
@@ -54,7 +49,6 @@ def main():
             fh.write(template_data % {
                     'dataset_dir': args.dataset_dir,
                     'teacher_path': args.teacher_path,
-                    'trained_models_path': args.trained_models_path,
                     'model_name': args.model_name,
                     'idx': idx
             })
