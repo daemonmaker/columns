@@ -2,7 +2,8 @@ import os
 import os.path as op
 import argparse
 import tempfile
-import FitNets.scripts.fitnets_training as fitnets_training
+import subprocess
+from FitNets.scripts import fitnets_stage1
 
 
 def main():
@@ -20,6 +21,13 @@ def main():
     parser.add_argument(
         'column',
         help='The column being trained.'
+    )
+
+    parser.add_argument(
+        'load_layer',
+        type=int,
+        default=None,
+        help='Integer indicating the hint layer from which to start training.'
     )
 
     parser.add_argument(
@@ -46,8 +54,22 @@ def main():
     os.chdir(new_dir)
 
     # Start the training
-    fitnets_training.execute(args.yaml_path, 'conv', args.scale_learning_rate)
+    fitnets_stage1.execute(args.yaml_path, 'conv')
 
+    # If we make it this far then the first stage did not die of an exception.
+    # As such we can issue a command to start the second stage.
+    print (
+        "jobdispatch --gpu --duree=12:00:00 --mem=6G"
+        " --env=THEANO_FLAGS=floatX=float32,device=gpu,force_device=True,base_compiledir='$RAMDISK_USER'"
+        " --repeat_jobs=2"
+        " python /home/webbd/columns/FitNets/scripts/fitnets_training.py"
+        " %(yaml_path)s %(load_layer)d -lrs %(lr_scale)f"
+        % {
+            'yaml_path': args.yaml_path,
+            'load_layer': args.load_layer,
+            'lr_scale': args.scale_learning_rate
+        }
+    )
 
 if __name__ == '__main__':
     main()

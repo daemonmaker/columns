@@ -10,4 +10,9 @@ for idx in range(nclasses):
     plt.subplot(4, 3, idx)
     plt.hist(np.argmax(dataset.y, axis=1), nclasses)
     plt.title('Column: %d, Total Samples: %d' % (idx, dataset.y.shape[0]))
+    #category_names = [
+    #    'Airplane','Automobile', 'Bird', 'Cat', 'Deer',
+    #    'Dog', 'Frog', 'Horse', 'Ship', 'Truck'
+    #]
+    #plt.legend(category_names)
 plt.show()
