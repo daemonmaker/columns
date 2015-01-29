@@ -25,9 +25,9 @@ def main():
     parser.add_argument(
         '--scale_learning_rate',
         '-s',
-        type=int,
-        default=1,
-        help='Whether to scale the learning rate of the bottom layers after'
+        type=float,
+        default=0.05,
+        help='Percentage to scale the learning rate of the bottom layers after'
         ' the first phase of training.'
     )
 
@@ -46,8 +46,7 @@ def main():
     os.chdir(new_dir)
 
     # Start the training
-    argv = [args.yaml_path, 'conv', args.scale_learning_rate]
-    fitnets_training.main()
+    fitnets_training.execute(args.yaml_path, 'conv', args.scale_learning_rate)
 
 
 if __name__ == '__main__':
