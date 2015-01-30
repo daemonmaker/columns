@@ -58,10 +58,10 @@ def main():
 
     # If we make it this far then the first stage did not die of an exception.
     # As such we can issue a command to start the second stage.
-    print (
+    subprocess.check_call(
         "jobdispatch --gpu --duree=12:00:00 --mem=6G"
         " --env=THEANO_FLAGS=floatX=float32,device=gpu,force_device=True,base_compiledir='$RAMDISK_USER'"
-        " --repeat_jobs=2"
+        " --repeat_jobs=1"
         " python /home/webbd/columns/FitNets/scripts/fitnets_training.py"
         " %(yaml_path)s %(load_layer)d -lrs %(lr_scale)f"
         % {
