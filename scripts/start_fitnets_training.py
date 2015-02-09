@@ -3,6 +3,7 @@ import os.path as op
 import argparse
 import tempfile
 import subprocess
+from FitNets.scripts import fitnets_training
 from FitNets.scripts import fitnets_stage1
 
 
@@ -39,6 +40,14 @@ def main():
         ' the first phase of training.'
     )
 
+    parser.add_argument(
+        '--two_stage',
+        '-t',
+        default=False,
+        action='store_true',
+        help='Whether to use two stage training.'
+    )
+
     args = parser.parse_args()
 
     # Determine the base directory wherein the models for the current column
@@ -53,23 +62,26 @@ def main():
     os.mkdir(new_dir)
     os.chdir(new_dir)
 
-    # Start the training
-    fitnets_stage1.execute(args.yaml_path, 'conv')
-
-    # If we make it this far then the first stage did not die of an exception.
-    # As such we can issue a command to start the second stage.
-    subprocess.check_call(
-        "jobdispatch --gpu --duree=12:00:00 --mem=6G"
-        " --env=THEANO_FLAGS=floatX=float32,device=gpu,force_device=True,base_compiledir='$RAMDISK_USER'"
-        " --repeat_jobs=1"
-        " python /home/webbd/columns/FitNets/scripts/fitnets_training.py"
-        " %(yaml_path)s %(load_layer)d -lrs %(lr_scale)f"
-        % {
-            'yaml_path': args.yaml_path,
-            'load_layer': args.load_layer,
-            'lr_scale': args.scale_learning_rate
-        }
-    )
+    if not args.two_stage:
+        fitnets_training.execute(args.yaml_path, 'conv', args.scale_learning_rate)
+    else:
+        # Start the training
+        fitnets_stage1.execute(args.yaml_path, 'conv')
+        
+        # If we make it this far then the first stage did not die of an exception.
+        # As such we can issue a command to start the second stage.
+        subprocess.check_call(
+            "jobdispatch --gpu --duree=12:00:00 --mem=6G"
+            " --env=THEANO_FLAGS=floatX=float32,device=gpu,force_device=True,base_compiledir='$RAMDISK_USER'"
+            " --repeat_jobs=1"
+            " python /home/webbd/columns/FitNets/scripts/fitnets_training.py"
+            " %(yaml_path)s %(load_layer)d -lrs %(lr_scale)f"
+            % {
+                'yaml_path': args.yaml_path,
+                'load_layer': args.load_layer,
+                'lr_scale': args.scale_learning_rate
+                }
+            )
 
 if __name__ == '__main__':
     main()
