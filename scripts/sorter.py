@@ -11,7 +11,7 @@ from pylearn2.utils import (
 )
 from pylearn2.config import yaml_parse
 from pylearn2.datasets.dense_design_matrix import DenseDesignMatrix
-from pylearn2.space import VectorSpace
+from pylearn2.space import CompositeSpace, VectorSpace, IndexSpace
 
 import theano
 from theano import config
@@ -24,23 +24,28 @@ class Sorter(object):
     def __init__(
         self,
         total_columns,
+        total_classes,
         model_file,
         dataset,
         temperature,
         representation_layer=-1,
         columns=[],
-        batch_size=1
+        batch_size=1,
+        min_samples_per_class=0
     ):
         assert(total_columns > 0)
         self.total_columns = total_columns
 
+        assert(total_classes > 0)
+        self.total_classes = total_classes
+
         assert(temperature >= 1)
         self.temperature = temperature
 
-        assert dataset.X.shape[0] % batch_size == 0
-
         assert(batch_size >= 1)
         self.batch_size = batch_size
+
+        assert dataset.X.shape[0] % batch_size == 0
 
         assert(dataset is not None)
         self.dataset = dataset
@@ -56,6 +61,12 @@ class Sorter(object):
         self.idx_map = {}
         for idx, column in enumerate(self.columns):
             self.idx_map[column] = idx
+
+        assert(min_samples_per_class >= 0)
+        self.min_samples_per_class = min_samples_per_class
+        self.samples_per_class = {
+            class_idx: 0 for class_idx in xrange(self.total_classes)
+        }
 
         if not (model_file and op.exists(model_file)):
             raise ValueError('Model file does not exist: %s' % model_file)
@@ -161,10 +172,14 @@ class Sorter(object):
         soft_labels = np.zeros((self.dataset.X.shape[0], self.total_columns))
 
         # Iterate over the data
+        data_specs = CompositeSpace([
+            self.model.get_input_space(),
+            IndexSpace(dim=1, max_labels=self.total_classes)
+        ])
         iterator = self.dataset.iterator(
             mode='sequential',
             batch_size=self.batch_size,
-            data_specs=self.model.cost_from_X_data_specs()
+            data_specs=(data_specs, ('features', 'targets'))
         )
 
         offset = 0
@@ -213,7 +228,7 @@ class Sorter(object):
             separator = int((1 - percentage_valid)*len(rows))
             assert(separator > 0 and separator < len(rows))
 
-            # Create targets
+            # One-hot encode targets
             y = np.zeros((self.dataset.y.shape[0], self.total_columns))
             for jdx in xrange(self.dataset.y.shape[0]):
                 y[jdx][self.dataset.y[jdx]] = 1
@@ -277,6 +292,26 @@ class Sorter(object):
             ' the Sorter class.'
         )
 
+    def _mark_sample_for_copy(self, row_idx, column_idxs, label, destinations):
+        """
+        Utility function for tracking which columns a given sample should be copied too.
+        """
+        # If we need a minimum number of samples per class for each column then
+        # send the first samples for each class to all the columns.
+        if (
+            self.samples_per_class[label]
+            < self.min_samples_per_class
+        ):
+            real_column_idxs = range(len(self.columns))
+            self.samples_per_class[label] += 1
+
+        # Otherwise send the sample only to the specified columns
+        else:
+            real_column_idxs = map(self._map_idx, column_idxs)
+
+        if len(real_column_idxs) > 0:
+            destinations[row_idx][real_column_idxs] = 1
+
     def _validate_parameter(self, param):
         """
         Abstract method that validates the sorting parameter.
@@ -296,25 +331,29 @@ class ThresholdSorter(Sorter):
     def __init__(
         self,
         total_columns,
+        total_classes,
         model_file,
         dataset,
         temperature,
         representation_layer=-1,
         columns=[],
         batch_size=1,
-        min_columns=2
+        min_columns=2,
+        min_samples_per_class=0
     ):
         assert(min_columns > 0)
         self.min_columns = min_columns
 
         super(ThresholdSorter, self).__init__(
             total_columns=total_columns,
+            total_classes=total_classes,
             model_file=model_file,
             dataset=dataset,
             representation_layer=representation_layer,
             temperature=temperature,
             columns=columns,
-            batch_size=batch_size
+            batch_size=batch_size,
+            min_samples_per_class=min_samples_per_class
         )
 
     def _validate_parameter(self, threshold):
@@ -355,8 +394,12 @@ class ThresholdSorter(Sorter):
             ).intersection(self.columns)
 
             # Mark the sample to be copied to the appropriate outputs.
-            if len(column_idxs) > 0:
-                destinations[row_idx][map(self._map_idx, column_idxs)] = 1
+            self._mark_sample_for_copy(
+                row_idx,
+                column_idxs,
+                labels[row_idx][0],
+                destinations
+            )
 
         return destinations
 
@@ -391,8 +434,12 @@ class ColumnsSorter(Sorter):
             ).intersection(self.columns)
 
             # Mark the sample to be copied to the appropriate outputs.
-            if len(column_idxs) > 0:
-                destinations[row_idx][map(self._map_idx, column_idxs)] = 1
+            self._mark_sample_for_copy(
+                row_idx,
+                column_idxs,
+                labels[row_idx][0],
+                destinations
+            )
 
         return destinations
 
@@ -415,6 +462,14 @@ def main():
     parser.add_argument(
         'dataset',
         help='The dataset that should be sorted by the gater.'
+    )
+    parser.add_argument(
+        '--total_classes',
+        '-c',
+        type=int,
+        default=0,
+        help='The total number of classes. Defaults to the total number of'
+        ' columns'
     )
     parser.add_argument(
         '--results_dir',
@@ -447,7 +502,7 @@ def main():
     )
     parser.add_argument(
         '--columns',
-        '-c',
+        '-cl',
         type=int,
         nargs='+',
         default=[],  # All columns
@@ -458,6 +513,7 @@ def main():
     parser.add_argument(
         '--batch_size',
         '-b',
+        type=int,
         default=100,
         help='The size of the batches to process at once.'
     )
@@ -476,6 +532,13 @@ def main():
         default=False,
         action='store_true',
         help='Whether to save the results.'
+    )
+    parser.add_argument(
+        '--min_samples_per_class',
+        '-m',
+        type=int,
+        default=0,
+        help='The number of samples that each column is guaranteed to receive per class.'
     )
 
     args = parser.parse_args()
@@ -523,14 +586,19 @@ def main():
         raise ValueError('Unknown dataset: %s' % args.dataset)
 
     # Instantiate the sorter
+    total_classes = args.total_classes
+    if total_classes == 0:
+        total_classes = args.total_columns
     sorter = eval('%sSorter' % args.type)(
         total_columns=args.total_columns,
+        total_classes=total_classes,
         model_file=args.gater_model,
         dataset=dataset,
         temperature=args.temperature,
         representation_layer=args.representation_layer,
         columns=args.columns,
-        batch_size=args.batch_size
+        batch_size=args.batch_size,
+        min_samples_per_class=args.min_samples_per_class
     )
 
     # Calculate the sorting for the data, the softened labels, and the
