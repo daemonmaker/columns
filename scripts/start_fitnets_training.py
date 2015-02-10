@@ -62,8 +62,12 @@ def main():
     os.mkdir(new_dir)
     os.chdir(new_dir)
 
+    scale_learning_rate = None
+    if args.scale_learning_rate > 0:
+        scale_learning_rate = args.scale_learning_rate
+
     if not args.two_stage:
-        fitnets_training.execute(args.yaml_path, 'conv', args.scale_learning_rate)
+        fitnets_training.execute(args.yaml_path, 'conv', scale_learning_rate)
     else:
         # Start the training
         fitnets_stage1.execute(args.yaml_path, 'conv')
@@ -79,7 +83,7 @@ def main():
             % {
                 'yaml_path': args.yaml_path,
                 'load_layer': args.load_layer,
-                'lr_scale': args.scale_learning_rate
+                'lr_scale': scale_learning_rate
                 }
             )
 
