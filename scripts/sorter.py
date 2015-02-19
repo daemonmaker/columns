@@ -209,7 +209,7 @@ class Sorter(object):
         Makes a dataset given a copy of the original data, a set of soft
         labels, and a mapping of which samples go to which columns.
         """
-        assert(percentage_valid > 0.0 and percentage_valid < 1.0)
+        assert(percentage_valid >= 0.0 and percentage_valid < 1.0)
         for idx in xrange(len(self.columns)):
             train_destination = op.join(
                 results_dir,
@@ -226,7 +226,7 @@ class Sorter(object):
             row_idxs = destinations[:, self.idx_map[idx]]
             rows = np.where(row_idxs > 0)[0]
             separator = int((1 - percentage_valid)*len(rows))
-            assert(separator > 0 and separator < len(rows))
+            assert(separator > 0 and separator <= len(rows))
 
             # One-hot encode targets
             y = np.zeros((self.dataset.y.shape[0], self.total_columns))
@@ -256,28 +256,29 @@ class Sorter(object):
             serial.save(train_destination, train_dataset)
             del train_dataset
 
-            # Create and save the valid dataset
-            if isinstance(self.representation_space, VectorSpace):
-                valid_dataset = DenseDesignMatrix(
-                    X=representations[rows[separator:]],
-                    #y=self.dataset.y[rows[separator:]],
-                    #y=soft_labels[rows[separator:]],
-                    y=y[rows[separator:]],
+            if percentage_valid > 0.0:
+                # Create and save the valid dataset
+                if isinstance(self.representation_space, VectorSpace):
+                    valid_dataset = DenseDesignMatrix(
+                        X=representations[rows[separator:]],
+                        #y=self.dataset.y[rows[separator:]],
+                        #y=soft_labels[rows[separator:]],
+                        y=y[rows[separator:]],
+                    )
+                else:
+                    valid_dataset = DenseDesignMatrix(
+                        topo_view=representations[rows[separator:]],
+                        #y=self.dataset.y[rows[separator:]],
+                        #y=soft_labels[rows[separator:]],
+                        y=y[rows[separator:]],
+                        axes=self.axes
+                    )
+                valid_dataset.soft_labels = soft_labels[rows[separator:]]
+                valid_dataset.use_design_loc(
+                    op.join(results_dir, name_template % ('valid', idx, 'npy'))
                 )
-            else:
-                valid_dataset = DenseDesignMatrix(
-                    topo_view=representations[rows[separator:]],
-                    #y=self.dataset.y[rows[separator:]],
-                    #y=soft_labels[rows[separator:]],
-                    y=y[rows[separator:]],
-                    axes=self.axes
-                )
-            valid_dataset.soft_labels = soft_labels[rows[separator:]]
-            valid_dataset.use_design_loc(
-                op.join(results_dir, name_template % ('valid', idx, 'npy'))
-            )
-            serial.save(valid_destination, valid_dataset)
-            del valid_dataset
+                serial.save(valid_destination, valid_dataset)
+                del valid_dataset
 
     def _map_idx(self, idx):
         return self.idx_map[idx]
@@ -540,6 +541,21 @@ def main():
         default=0,
         help='The number of samples that each column is guaranteed to receive per class.'
     )
+    parser.add_argument(
+        '--samples',
+        '-s',
+        type=int,
+        nargs='+',
+        default=None,
+        help='Range of samples to load from the dataset. Can be either a single number indicating the stop index or two numbers indicating the start and stop indices respectively.'
+    )
+    parser.add_argument(
+        '--percentage_valid',
+        '-v',
+        type=float,
+        default=0.0,
+        help='The percentage of the samples that should be used for validation. If 0.0 then no data will be held out for the validation set.'
+    )
 
     args = parser.parse_args()
 
@@ -547,12 +563,25 @@ def main():
         parser.print_help()
         raise ValueError('Sort type must bye one of %s' % list(sort_types))
 
+    def select_start_stop_range(default_stop, samples):
+        start_idx = 0
+        stop_idx = 40000
+        if samples is not None:
+            assert(len(samples) in [1, 2])
+            if len(samples) == 1:
+                stop_idx = samples[0]
+            else:
+                start_idx = samples[0]
+                stop_idx = samples[1]
+        return start_idx, stop_idx
+
     # TODO With a little import magic this could import any pylearn2 dataset
     pylearn2_data_path = string_utils.preprocess('${PYLEARN2_DATA_PATH}')
     if args.dataset == 'CIFAR100':
         #from pylearn2.datasets.cifar100 import CIFAR100
         #dataset = CIFAR100('train')
         from pylearn2.datasets.zca_dataset import ZCA_Dataset
+        start_idx, stop_idx = select_start_stop_range(40000, args.samples)
         data_dir = op.join(
             pylearn2_data_path,
             'cifar100',
@@ -561,14 +590,15 @@ def main():
         dataset = ZCA_Dataset(
             preprocessed_dataset=serial.load(op.join(data_dir, 'train.pkl')),
             preprocessor=serial.load(op.join(data_dir, 'preprocessor.pkl')),
-            start=0,
-            stop=40000,
+            start=start_idx,
+            stop=stop_idx,
             axes=['c', 0, 1, 'b']
         )
     elif args.dataset == 'CIFAR10':
-        from pylearn2.datasets.cifar10 import CIFAR10
-        dataset = CIFAR10('train')
+        #from pylearn2.datasets.cifar10 import CIFAR10
+        #dataset = CIFAR10('train')
         from pylearn2.datasets.zca_dataset import ZCA_Dataset
+        start_idx, stop_idx = select_start_stop_range(40000, args.samples)
         data_dir = op.join(
             pylearn2_data_path,
             'cifar10',
@@ -577,8 +607,8 @@ def main():
         dataset = ZCA_Dataset(
             preprocessed_dataset=serial.load(op.join(data_dir, 'train.pkl')),
             preprocessor=serial.load(op.join(data_dir, 'preprocessor.pkl')),
-            start=0,
-            stop=40000,
+            start=start_idx,
+            stop=stop_idx,
             axes=['c', 0, 1, 'b']
         )
 
@@ -620,7 +650,8 @@ def main():
             name_template,
             destinations,
             soft_labels,
-            representations
+            representations,
+            percentage_valid=args.percentage_valid
         )
 
 if __name__ == '__main__':
