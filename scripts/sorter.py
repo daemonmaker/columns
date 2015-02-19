@@ -565,7 +565,7 @@ def main():
 
     def select_start_stop_range(default_stop, samples):
         start_idx = 0
-        stop_idx = 40000
+        stop_idx = default_stop
         if samples is not None:
             assert(len(samples) in [1, 2])
             if len(samples) == 1:
@@ -581,7 +581,7 @@ def main():
         #from pylearn2.datasets.cifar100 import CIFAR100
         #dataset = CIFAR100('train')
         from pylearn2.datasets.zca_dataset import ZCA_Dataset
-        start_idx, stop_idx = select_start_stop_range(40000, args.samples)
+        start_idx, stop_idx = select_start_stop_range(50000, args.samples)
         data_dir = op.join(
             pylearn2_data_path,
             'cifar100',
@@ -598,7 +598,7 @@ def main():
         #from pylearn2.datasets.cifar10 import CIFAR10
         #dataset = CIFAR10('train')
         from pylearn2.datasets.zca_dataset import ZCA_Dataset
-        start_idx, stop_idx = select_start_stop_range(40000, args.samples)
+        start_idx, stop_idx = select_start_stop_range(50000, args.samples)
         data_dir = op.join(
             pylearn2_data_path,
             'cifar10',
